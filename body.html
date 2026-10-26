@@ -1,0 +1,331 @@
+<header class="topbar" id="topbar">
+  <div class="topbar-in">
+    <div class="brand"><i class="seal" aria-hidden="true">MX</i><b>MEXDER Derivados Lab</b><span>Acciones individuales · futuros y opciones</span></div>
+    <div class="ctrl">
+      <label for="sel-symbol">Emisora</label>
+      <select id="sel-symbol"></select>
+      <input id="in-symbol" type="text" placeholder="Otra: ej. ALSEA.MX" style="width:140px" aria-label="Clave de pizarra personalizada">
+      <button class="btn primary" id="btn-load">Cargar</button>
+    </div>
+    <div class="ctrl">
+      <label>Ciclo</label>
+      <div class="seg" id="seg-cycle" role="group" aria-label="Ciclo de tiempo">
+        <button data-v="D" aria-pressed="true">Diario</button><button data-v="W" aria-pressed="false">Semanal</button><button data-v="M" aria-pressed="false">Mensual</button><button data-v="N" aria-pressed="false">N días</button>
+      </div>
+      <input id="in-ndays" type="number" min="2" max="60" value="10" style="width:60px" aria-label="Días por barra" hidden>
+    </div>
+    <div class="quote" id="quote"><span class="muted small">Cargando…</span></div>
+    <span class="chip demo" id="chip-src">Demostración</span>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="side" id="nav" aria-label="Módulos">
+    <div class="navgroup"><h4>Análisis de la emisora</h4>
+      <button data-view="hist"><span class="k">01</span>Data histórica</button>
+      <button data-view="tec"><span class="k">02</span>Análisis y valuación</button>
+      <button data-view="fin"><span class="k">03</span>Análisis financiero</button>
+      <button data-view="riesgo"><span class="k">04</span>Patrones y riesgos</button>
+      <button data-view="chart"><span class="k">05</span>Análisis gráfico</button>
+    </div>
+    <div class="navgroup"><h4>Derivados</h4>
+      <button data-view="fut"><span class="k">06</span>Contratos de futuros</button>
+      <button data-view="opc"><span class="k">07</span>Contratos con opciones</button>
+      <button data-view="cob"><span class="k">08</span>Estrategias de cobertura</button>
+      <button data-view="opf"><span class="k">09</span>Operación futuros</button>
+      <button data-view="opo"><span class="k">10</span>Operación opciones</button>
+    </div>
+    <div class="navgroup"><h4>Decisión y reportes</h4>
+      <button data-view="comp"><span class="k">11</span>Coberturas y comparativas</button>
+      <button data-view="esc"><span class="k">12</span>Escenarios prospectivos</button>
+      <button data-view="rep"><span class="k">13</span>Reportes XLS y PDF</button>
+    </div>
+  </nav>
+
+  <main id="main">
+    <div class="view" style="margin-bottom:16px">
+      <div class="banner" id="demo-banner" hidden><b>Modo demostración.</b><span id="demo-text">No hay conexión al servicio de datos, así que los precios son simulados y los estados financieros son ilustrativos. Al desplegar en Vercel se cargan datos reales de Yahoo Finance. También puedes subir un CSV de precios en Data histórica.</span></div>
+    </div>
+
+    <!-- Parámetros de mercado compartidos por los módulos de derivados -->
+    <section class="view" id="params" hidden style="margin-bottom:16px">
+      <div class="card">
+        <h3>Parámetros de mercado <span class="sub">compartidos por futuros, opciones, coberturas y escenarios</span></h3>
+        <div class="form">
+          <div class="field"><label for="p-spot">Precio spot</label><input id="p-spot" type="number" step="0.01"><span class="hint" id="p-spot-h">último cierre</span></div>
+          <div class="field"><label for="p-r">Tasa libre r (%)</label><input id="p-r" type="number" step="0.05" value="7.00"><span class="hint">CETES/TIIE anual</span></div>
+          <div class="field"><label for="p-q">Dividendos q (%)</label><input id="p-q" type="number" step="0.05"><span class="hint" id="p-q-h">rendimiento anual</span></div>
+          <div class="field"><label for="p-volm">Volatilidad</label><select id="p-volm"><option value="hist">Histórica</option><option value="ewma" selected>EWMA λ 0.94</option><option value="park">Parkinson</option><option value="iv">Implícita / manual</option></select></div>
+          <div class="field"><label for="p-vol">σ anual (%)</label><input id="p-vol" type="number" step="0.1"><span class="hint" id="p-vol-h">calibrada</span></div>
+          <div class="field"><label for="p-term">Plazo</label><select id="p-term">
+            <option value="30">Mes (30 d)</option><option value="60">Bimestre (60 d)</option><option value="91" selected>Trimestre (91 d)</option><option value="182">Semestre (182 d)</option><option value="365">Año (365 d)</option><option value="mx">Vencimiento MEXDER</option><option value="custom">Personalizado</option></select></div>
+          <div class="field" id="f-term-mx" hidden><label for="p-term-mx">Serie</label><select id="p-term-mx"></select></div>
+          <div class="field" id="f-term-c" hidden><label for="p-days">Días</label><input id="p-days" type="number" min="1" max="1500" value="45"></div>
+          <div class="field"><label for="p-size">Acciones por contrato</label><input id="p-size" type="number" min="1" value="100"></div>
+          <div class="field"><label for="p-n">Contratos</label><input id="p-n" type="number" min="1" value="10"></div>
+          <div class="field"><label for="p-cap">Capital (MXN)</label><input id="p-cap" type="number" step="10000" value="500000"></div>
+          <div class="field"><label for="p-prof">Perfil</label><select id="p-prof"><option value="cons">Conservador</option><option value="mod" selected>Moderado</option><option value="agr">Agresivo</option></select></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 01 DATA HISTÓRICA -->
+    <section class="view" id="v-hist" hidden>
+      <div class="view-head"><div><h2>Data histórica</h2><p>Precios OHLC y volumen de la emisora en el ciclo elegido. El ciclo de la barra superior también rige los indicadores, los patrones y las betas.</p></div>
+        <div class="row">
+          <div class="field"><label for="h-years">Historia</label><select id="h-years"><option value="1">1 año</option><option value="2">2 años</option><option value="3" selected>3 años</option><option value="5">5 años</option><option value="10">10 años</option></select></div>
+          <div class="field"><label for="h-from">Desde</label><input type="date" id="h-from"></div>
+          <div class="field"><label for="h-to">Hasta</label><input type="date" id="h-to"></div>
+          <button class="btn" id="h-reset">Todo el rango</button>
+        </div>
+      </div>
+      <div class="stats" id="h-stats"></div>
+      <div class="card"><h3>Precio y volumen <span class="sub" id="h-sub"></span>
+        <span style="margin-left:auto" class="seg" id="h-ctype"><button data-v="candle" aria-pressed="true">Velas</button><button data-v="line" aria-pressed="false">Línea</button></span></h3>
+        <div class="chart lg"><canvas id="c-hist"></canvas></div>
+        <div class="chart sm" style="height:110px"><canvas id="c-vol"></canvas></div>
+      </div>
+      <div class="card"><h3>Tabla de precios <span class="sub" id="h-count"></span>
+        <span style="margin-left:auto" class="row"><label class="btn sm" for="h-csv">Subir CSV</label><input type="file" id="h-csv" accept=".csv,text/csv" hidden><button class="btn sm" id="h-dl">Descargar CSV</button></span></h3>
+        <div class="tbl-wrap tall"><table id="t-hist"></table></div>
+        <p class="note" style="margin-top:8px">CSV aceptado: columnas Date, Open, High, Low, Close, (Adj Close), Volume, como las exporta Yahoo Finance o Investing.</p>
+      </div>
+    </section>
+
+    <!-- 02 ANÁLISIS Y VALUACIÓN -->
+    <section class="view" id="v-tec" hidden>
+      <div class="view-head"><div><h2>Análisis y valuación de la emisora</h2><p>Precio spot, osciladores ROC, Williams %R, estocástico, RSI 9/14/25 y retrocesos de Fibonacci sobre el ciclo seleccionado.</p></div>
+        <div class="row">
+          <div class="field"><label for="t-roc">ROC n</label><input id="t-roc" type="number" min="2" value="12" style="width:70px"></div>
+          <div class="field"><label for="t-will">Williams n</label><input id="t-will" type="number" min="2" value="14" style="width:70px"></div>
+          <div class="field"><label for="t-stk">Estoc. %K / %D</label><div class="row"><input id="t-stk" type="number" min="2" value="14" style="width:60px"><input id="t-std" type="number" min="1" value="3" style="width:50px"></div></div>
+          <div class="field"><label for="t-fib">Ventana Fibo</label><input id="t-fib" type="number" min="10" value="120" style="width:75px"></div>
+        </div>
+      </div>
+      <div class="stats" id="t-stats"></div>
+      <div class="grid g2">
+        <div class="card span2"><h3>Precio con retrocesos de Fibonacci <span class="sub" id="t-fibsub"></span></h3><div class="chart lg"><canvas id="c-fib"></canvas></div></div>
+        <div class="card"><h3>RSI 9 · 14 · 25</h3><div class="chart sm"><canvas id="c-rsi"></canvas></div></div>
+        <div class="card"><h3>Estocástico %K / %D</h3><div class="chart sm"><canvas id="c-stoch"></canvas></div></div>
+        <div class="card"><h3>Williams %R</h3><div class="chart sm"><canvas id="c-will"></canvas></div></div>
+        <div class="card"><h3>ROC</h3><div class="chart sm"><canvas id="c-roc"></canvas></div></div>
+        <div class="card"><h3>Niveles de Fibonacci</h3><div class="tbl-wrap"><table id="t-fibt"></table></div></div>
+        <div class="card"><h3>Lectura de señales <span class="chip" id="t-view"></span></h3><div id="t-signals"></div></div>
+      </div>
+    </section>
+
+    <!-- 03 ANÁLISIS FINANCIERO -->
+    <section class="view" id="v-fin" hidden>
+      <div class="view-head"><div><h2>Análisis financiero</h2><p id="fin-src">Estados financieros anuales y trimestrales, razones, dividendos y previsiones.</p></div></div>
+      <div class="tabs" role="tablist" id="fin-tabs">
+        <button role="tab" data-t="res" aria-selected="true">Resumen financiero</button>
+        <button role="tab" data-t="er" aria-selected="false">Cuenta de resultados</button>
+        <button role="tab" data-t="bal" aria-selected="false">Balance</button>
+        <button role="tab" data-t="flu" aria-selected="false">Flujos de efectivo</button>
+        <button role="tab" data-t="rat" aria-selected="false">Ratios</button>
+        <button role="tab" data-t="div" aria-selected="false">Dividendos</button>
+        <button role="tab" data-t="rep" aria-selected="false">Reportes</button>
+        <button role="tab" data-t="prev" aria-selected="false">Previsión</button>
+      </div>
+      <div id="fin-body" class="view" style="max-width:none"></div>
+    </section>
+
+    <!-- 04 PATRONES Y RIESGOS -->
+    <section class="view" id="v-riesgo" hidden>
+      <div class="view-head"><div><h2>Patrones y riesgos</h2><p>Tendencias primaria y secundaria, beta general contra el S&amp;P/BMV IPC y beta por selección de tiempo, volatilidad, VaR y caídas máximas.</p></div>
+        <div class="row">
+          <div class="field"><label for="r-win">Ventana beta</label><select id="r-win"><option value="21">1 mes</option><option value="63">3 meses</option><option value="126" selected>6 meses</option><option value="252">1 año</option><option value="504">2 años</option><option value="custom">Fechas</option></select></div>
+          <div class="field" id="r-dates" hidden><label>Rango</label><div class="row"><input type="date" id="r-from"><input type="date" id="r-to"></div></div>
+          <div class="field"><label for="r-roll">Beta móvil (barras)</label><input id="r-roll" type="number" min="10" value="60" style="width:80px"></div>
+        </div>
+      </div>
+      <div class="stats" id="r-stats"></div>
+      <div class="grid g2">
+        <div class="card span2"><h3>Tendencias primaria y secundaria</h3><div class="chart"><canvas id="c-trend"></canvas></div><div id="r-trend" class="row" style="margin-top:8px"></div></div>
+        <div class="card"><h3>Beta por ciclo de tiempo</h3><div class="tbl-wrap"><table id="t-beta"></table></div><p class="note" style="margin-top:8px">β = Cov(rᵢ, r_IPC) / Var(r_IPC), con rendimientos logarítmicos del mismo ciclo.</p></div>
+        <div class="card"><h3>Dispersión vs IPC <span class="sub" id="r-scsub"></span></h3><div class="chart"><canvas id="c-scatter"></canvas></div></div>
+        <div class="card span2"><h3>Beta móvil</h3><div class="chart sm"><canvas id="c-rbeta"></canvas></div></div>
+        <div class="card span2"><h3>Caídas desde máximos (drawdown)</h3><div class="chart sm"><canvas id="c-dd"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- 05 CHARTISMO -->
+    <section class="view" id="v-chart" hidden>
+      <div class="view-head"><div><h2>Análisis gráfico (chartismo)</h2><p>Detección automática de figuras clave sobre pivotes del ciclo elegido: soportes y resistencias, doble techo o piso, hombro-cabeza-hombro, triángulos, canales, rupturas y cruces de medias. Cada figura sugiere una postura.</p></div>
+        <div class="row">
+          <div class="field"><label for="ch-k">Sensibilidad pivote</label><input id="ch-k" type="number" min="2" max="20" value="5" style="width:70px"></div>
+          <div class="field"><label for="ch-n">Barras analizadas</label><input id="ch-n" type="number" min="40" value="180" style="width:80px"></div>
+        </div>
+      </div>
+      <div class="grid g3">
+        <div class="card span2"><h3>Figuras sobre el precio</h3><div class="chart lg"><canvas id="c-chart"></canvas></div></div>
+        <div class="card"><h3>Figuras clave <span class="chip" id="ch-view"></span></h3><div class="pill-list" id="ch-figs"></div></div>
+      </div>
+      <div class="card"><h3>Soportes y resistencias</h3><div class="tbl-wrap"><table id="t-sr"></table></div></div>
+    </section>
+
+    <!-- 06 FUTUROS -->
+    <section class="view" id="v-fut" hidden>
+      <div class="view-head"><div><h2>Contratos de futuros</h2><p>Precio teórico por costo de acarreo, aportación inicial mínima (AIM), postura sugerida, plazo y tipo de contrato, con simulación de la liquidación diaria.</p></div></div>
+      <div class="card">
+        <div class="form">
+          <div class="field"><label for="f-side">Postura</label><select id="f-side"><option value="auto">Sugerida por el análisis</option><option value="1">Compra (larga)</option><option value="-1">Venta (corta)</option></select><span class="hint" id="f-side-h"></span></div>
+          <div class="field"><label for="f-style">Tipo de contrato</label><select id="f-style"><option value="eu">Europeo</option><option value="am">Americano</option></select></div>
+          <div class="field"><label for="f-price">Precio pactado</label><input id="f-price" type="number" step="0.01"><span class="hint">vacío = teórico</span></div>
+          <div class="field"><label for="f-conf">Confianza AIM</label><select id="f-conf"><option value="0.95">95%</option><option value="0.99" selected>99%</option><option value="0.995">99.5%</option></select></div>
+          <div class="field"><label for="f-hz">Días de liquidación</label><input id="f-hz" type="number" min="1" max="10" value="2"></div>
+          <div class="field"><label for="f-aimm">AIM manual (% nocional)</label><input id="f-aimm" type="number" step="0.5" placeholder="automático"></div>
+          <div class="field"><label for="f-tp">Objetivo cierre anticipado (%)</label><input id="f-tp" type="number" step="0.5" value="8"><span class="hint">solo americano</span></div>
+        </div>
+      </div>
+      <div class="stats" id="f-stats"></div>
+      <div class="grid g2">
+        <div class="card"><h3>Resultado al vencimiento por movimiento del subyacente</h3><div class="tbl-wrap tall"><table id="t-fpl"></table></div></div>
+        <div class="card"><h3>Simulación de liquidación diaria <span class="sub">saldo de la cuenta de margen · 500 trayectorias</span></h3><div class="chart"><canvas id="c-fsim"></canvas></div><div class="stats" id="f-simstats" style="margin-top:10px"></div></div>
+        <div class="card span2"><h3>Americano o europeo</h3><div id="f-type"></div></div>
+      </div>
+    </section>
+
+    <!-- 07 OPCIONES -->
+    <section class="view" id="v-opc" hidden>
+      <div class="view-head"><div><h2>Contratos con opciones</h2><p>Black-Scholes-Merton con calibración automática de la volatilidad, modelo binomial (factores de subida y bajada) y contrato básico de una postura.</p></div></div>
+      <div class="grid g2">
+        <div class="card"><h3>Calibración automática de Black-Scholes</h3>
+          <div class="tbl-wrap"><table id="t-cal"></table></div>
+          <div class="form" style="margin-top:10px">
+            <div class="field"><label for="o-mkt">Prima de mercado observada</label><input id="o-mkt" type="number" step="0.01" placeholder="opcional"></div>
+            <button class="btn primary" id="o-auto">Calibrar σ</button>
+          </div>
+          <p class="note" style="margin-top:8px" id="o-calnote"></p>
+        </div>
+        <div class="card"><h3>Sonrisa de volatilidad <span class="sub">capture primas por strike para calibrar σ implícita</span></h3>
+          <div class="tbl-wrap"><table id="t-smile"></table></div>
+          <div class="chart sm" style="margin-top:8px"><canvas id="c-smile"></canvas></div>
+        </div>
+      </div>
+      <div class="card"><h3>Contrato de opción básico <span class="sub">una postura, pago de prima</span></h3>
+        <div class="form">
+          <div class="field"><label for="o-type">Opción</label><select id="o-type"><option value="C">Call (compra)</option><option value="P">Put (venta)</option></select></div>
+          <div class="field"><label for="o-side">Postura</label><select id="o-side"><option value="1">Larga (pago prima)</option><option value="-1">Corta (cobro prima)</option></select></div>
+          <div class="field"><label for="o-K">Precio de ejercicio</label><input id="o-K" type="number" step="0.5"></div>
+          <div class="field"><label for="o-style">Estilo</label><select id="o-style"><option value="eu">Europeo</option><option value="am">Americano</option></select></div>
+          <div class="field"><label for="o-prem">Prima pactada</label><input id="o-prem" type="number" step="0.01" placeholder="teórica"></div>
+        </div>
+        <div class="stats" id="o-stats" style="margin-top:12px"></div>
+        <div class="grid g2" style="margin-top:12px">
+          <div><div class="chart"><canvas id="c-opay"></canvas></div></div>
+          <div><div class="tbl-wrap"><table id="t-greeks"></table></div><div id="o-risk" style="margin-top:10px"></div></div>
+        </div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>Modelo binomial (CRR)</h3>
+          <div class="form"><div class="field"><label for="b-n">Pasos del árbol</label><input id="b-n" type="number" min="1" max="500" value="6"></div></div>
+          <div class="stats" id="b-stats" style="margin-top:10px"></div>
+          <div class="tbl-wrap" style="margin-top:10px"><table class="tree" id="t-tree"></table></div>
+          <p class="note" style="margin-top:6px">Cada nodo: precio del subyacente y valor de la opción. Nodos ocres = ejercicio anticipado óptimo (americana). Se dibuja el árbol hasta 8 pasos.</p>
+        </div>
+        <div class="card"><h3>Convergencia binomial → Black-Scholes</h3><div class="chart"><canvas id="c-conv"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- 08 ESTRATEGIAS DE COBERTURA -->
+    <section class="view" id="v-cob" hidden>
+      <div class="view-head"><div><h2>Estrategias de cobertura</h2><p>Straddle, strangle, mariposa, caps, floors, collares y futuros con stop loss. Primas valuadas con la σ calibrada.</p></div></div>
+      <div class="card">
+        <div class="row" id="s-pick" role="tablist" aria-label="Estrategia" style="gap:6px"></div>
+        <div class="form" style="margin-top:12px">
+          <div class="field"><label for="s-k1">Strike inferior K₁</label><input id="s-k1" type="number" step="0.5"></div>
+          <div class="field"><label for="s-k2">Strike central / superior K₂</label><input id="s-k2" type="number" step="0.5"></div>
+          <div class="field"><label for="s-k3">Strike superior K₃</label><input id="s-k3" type="number" step="0.5"></div>
+          <div class="field"><label for="s-w">Ancho de strikes (%)</label><input id="s-w" type="number" step="0.5" value="5"></div>
+          <div class="field"><label for="s-sl">Stop loss (%)</label><input id="s-sl" type="number" step="0.5" value="5"></div>
+          <button class="btn" id="s-reset">Recalcular strikes</button>
+        </div>
+      </div>
+      <div class="grid g3">
+        <div class="card span2"><h3 id="s-title"></h3><p class="desc" id="s-desc"></p><div class="chart lg" style="margin-top:8px"><canvas id="c-spay"></canvas></div></div>
+        <div class="card"><h3>Métricas</h3><div class="stats" id="s-stats" style="grid-template-columns:repeat(2,minmax(0,1fr))"></div></div>
+      </div>
+      <div class="card"><h3>Composición <span class="sub">patas de la estrategia</span></h3><div class="tbl-wrap"><table class="legs" id="t-legs"></table></div>
+        <div class="row" style="margin-top:10px"><button class="btn" id="s-book">Registrar en operaciones</button><span class="muted small" id="s-bookmsg"></span></div></div>
+    </section>
+
+    <!-- 09 OPERACIÓN FUTUROS -->
+    <section class="view" id="v-opf" hidden>
+      <div class="view-head"><div><h2>Operación de futuros</h2><p>Bitácora de posiciones con valuación a mercado, AIM requerida y resultado. Se guarda en este navegador.</p></div></div>
+      <div class="card"><h3>Nueva operación</h3>
+        <div class="form">
+          <div class="field"><label for="of-side">Postura</label><select id="of-side"><option value="1">Compra</option><option value="-1">Venta</option></select></div>
+          <div class="field"><label for="of-n">Contratos</label><input id="of-n" type="number" min="1" value="10"></div>
+          <div class="field"><label for="of-px">Precio pactado</label><input id="of-px" type="number" step="0.01"></div>
+          <div class="field"><label for="of-days">Días a vencimiento</label><input id="of-days" type="number" min="1" value="91"></div>
+          <div class="field"><label for="of-sl">Stop loss (precio)</label><input id="of-sl" type="number" step="0.01" placeholder="opcional"></div>
+          <div class="field"><label for="of-tp">Toma de utilidad</label><input id="of-tp" type="number" step="0.01" placeholder="opcional"></div>
+          <button class="btn primary" id="of-add">Registrar</button>
+          <button class="btn" id="of-fill">Usar análisis actual</button>
+        </div>
+      </div>
+      <div class="stats" id="of-stats"></div>
+      <div class="card"><h3>Posiciones</h3><div class="tbl-wrap"><table id="t-of"></table></div></div>
+    </section>
+
+    <!-- 10 OPERACIÓN OPCIONES -->
+    <section class="view" id="v-opo" hidden>
+      <div class="view-head"><div><h2>Operación de opciones</h2><p>Bitácora de opciones con valuación Black-Scholes al spot actual, griegas agregadas y resultado. Se guarda en este navegador.</p></div></div>
+      <div class="card"><h3>Nueva operación</h3>
+        <div class="form">
+          <div class="field"><label for="oo-type">Opción</label><select id="oo-type"><option value="C">Call</option><option value="P">Put</option></select></div>
+          <div class="field"><label for="oo-side">Postura</label><select id="oo-side"><option value="1">Larga</option><option value="-1">Corta</option></select></div>
+          <div class="field"><label for="oo-K">Strike</label><input id="oo-K" type="number" step="0.5"></div>
+          <div class="field"><label for="oo-prem">Prima</label><input id="oo-prem" type="number" step="0.01" placeholder="teórica"></div>
+          <div class="field"><label for="oo-n">Contratos</label><input id="oo-n" type="number" min="1" value="10"></div>
+          <div class="field"><label for="oo-days">Días a vencimiento</label><input id="oo-days" type="number" min="1" value="91"></div>
+          <button class="btn primary" id="oo-add">Registrar</button>
+        </div>
+      </div>
+      <div class="stats" id="oo-stats"></div>
+      <div class="card"><h3>Posiciones</h3><div class="tbl-wrap"><table id="t-oo"></table></div></div>
+      <div class="card"><h3>Perfil de resultado del libro de opciones</h3><div class="chart"><canvas id="c-oo"></canvas></div></div>
+    </section>
+
+    <!-- 11 COMPARATIVAS -->
+    <section class="view" id="v-comp" hidden>
+      <div class="view-head"><div><h2>Coberturas y comparativas</h2><p>Todas las estrategias valuadas con los mismos parámetros y simuladas con 4,000 trayectorias. La recomendación combina la lectura técnica, el régimen de volatilidad y el perfil.</p></div>
+        <div class="field"><label for="c-drift">Supuesto de tendencia</label><select id="c-drift"><option value="rn">Neutral al riesgo (r − q)</option><option value="hist">Histórica de la emisora</option><option value="view" selected>Lectura técnica actual</option></select></div>
+      </div>
+      <div class="rec" id="c-rec"></div>
+      <div class="card"><h3>Comparativa de estrategias</h3><div class="tbl-wrap"><table id="t-comp"></table></div></div>
+      <div class="grid g2">
+        <div class="card"><h3>Probabilidad de ganancia vs pérdida máxima</h3><div class="chart"><canvas id="c-comp"></canvas></div></div>
+        <div class="card"><h3>Perfiles de resultado superpuestos</h3><div class="chart"><canvas id="c-comp2"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- 12 ESCENARIOS -->
+    <section class="view" id="v-esc" hidden>
+      <div class="view-head"><div><h2>Escenarios prospectivos por perfil</h2><p>Seis escenarios por perfil (de alcista fuerte a estrés), medidos en desviaciones de la volatilidad calibrada al horizonte. Cada perfil evalúa su propia mezcla de coberturas.</p></div>
+        <div class="row">
+          <div class="field"><label for="e-hz">Horizonte de evaluación</label><select id="e-hz"><option value="1">Al vencimiento</option><option value="0.5">A mitad del plazo</option><option value="0.25">A un cuarto del plazo</option></select></div>
+        </div>
+      </div>
+      <div class="card"><h3>Definición de escenarios <span class="sub">editable</span></h3><div class="tbl-wrap"><table id="t-escdef"></table></div></div>
+      <div id="e-profiles" class="view" style="max-width:none"></div>
+    </section>
+
+    <!-- 13 REPORTES -->
+    <section class="view" id="v-rep" hidden>
+      <div class="view-head"><div><h2>Reportes</h2><p>Genera el libro de Excel con todas las tablas y el informe PDF con gráficas, listos para imprimir.</p></div></div>
+      <div class="card"><h3>Contenido del reporte</h3>
+        <div class="checks" id="rep-checks"></div>
+        <div class="row" style="margin-top:14px">
+          <button class="btn primary" id="rep-xls">Descargar Excel (.xlsx)</button>
+          <button class="btn primary" id="rep-pdf">Descargar informe PDF</button>
+          <button class="btn" id="rep-print">Imprimir pantalla</button>
+          <span class="muted small" id="rep-msg"></span>
+        </div>
+      </div>
+      <div class="card"><h3>Resumen ejecutivo</h3><div id="rep-sum"></div></div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast" hidden></div>
